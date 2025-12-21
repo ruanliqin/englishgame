@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="4岁儿童英语启蒙学习网站">
+    <title>英语启蒙乐园</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ==================== 欢迎页（解锁音频） ==================== -->
+    <div id="welcome-view" class="view active">
+        <div class="welcome-container">
+            <div class="welcome-icon">🎒</div>
+            <h1 class="welcome-title">英语启蒙乐园</h1>
+            <p class="welcome-subtitle">专为4岁宝宝设计的趣味英语学习</p>
+            <div class="welcome-features">
+                <span>🎮 8款趣味游戏</span>
+                <span>📚 500+单词库</span>
+                <span>🔊 标准发音</span>
+            </div>
+            <button class="welcome-btn" onclick="startLearning()" id="start-btn">
+                <span class="btn-icon">▶️</span>
+                <span>开始学习</span>
+            </button>
+            <p class="welcome-tip" id="welcome-tip">💡 点击按钮后即可使用语音功能</p>
+        </div>
+    </div>
+
+    <!-- ==================== 首页/游戏选择页 ==================== -->
+    <div id="home-view" class="view">
+        <header class="main-header">
+            <h1>🌈 英语启蒙乐园 🌈</h1>
+            <button class="settings-btn" onclick="showView('content-manager-view')">
+                <span class="settings-icon">⚙️</span>
+                <span class="settings-text">今日学习</span>
+            </button>
+        </header>
+        <main class="home-main">
+            <div class="games-grid">
+                <!-- 游戏1: 单词闪记卡 -->
+                <button class="game-card game-card-pink" onclick="showView('flashcard-game-view')">
+                    <div class="game-icon">🃏</div>
+                    <div class="game-name">单词闪记卡</div>
+                </button>
+                <!-- 游戏2: 图片单词下雨 -->
+                <button class="game-card game-card-blue" onclick="showView('word-rain-game-view')">
+                    <div class="game-icon">🌧️</div>
+                    <div class="game-name">单词下雨</div>
+                </button>
+                <!-- 游戏3: 字母拼拼乐 -->
+                <button class="game-card game-card-yellow" onclick="showView('spell-game-view')">
+                    <div class="game-icon">🔤</div>
+                    <div class="game-name">字母拼拼乐</div>
+                </button>
+                <!-- 游戏4: 听音选图 -->
+                <button class="game-card game-card-green" onclick="showView('listen-pick-game-view')">
+                    <div class="game-icon">👂</div>
+                    <div class="game-name">听音选图</div>
+                </button>
+                <!-- 游戏5: 单词连连看 -->
+                <button class="game-card game-card-pink" onclick="showView('match-game-view')">
+                    <div class="game-icon">🔗</div>
+                    <div class="game-name">单词连连看</div>
+                </button>
+                <!-- 游戏6: 分类小能手 -->
+                <button class="game-card game-card-blue" onclick="showView('category-game-view')">
+                    <div class="game-icon">📦</div>
+                    <div class="game-name">分类小能手</div>
+                </button>
+                <!-- 游戏7: 找单词小侦探 -->
+                <button class="game-card game-card-yellow" onclick="showView('finder-game-view')">
+                    <div class="game-icon">🔍</div>
+                    <div class="game-name">找单词小侦探</div>
+                </button>
+                <!-- 游戏8: 单词拍拍乐 -->
+                <button class="game-card game-card-green" onclick="showView('tap-game-view')">
+                    <div class="game-icon">👋</div>
+                    <div class="game-name">单词拍拍乐</div>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== 自定义内容管理页 ==================== -->
+    <div id="content-manager-view" class="view">
+        <button class="back-btn" onclick="showView('home-view')">🏠</button>
+        <header class="page-header">
+            <h2>📝 今日学习内容</h2>
+        </header>
+        <main class="content-manager-main">
+            <!-- 当前单词列表 -->
+            <div class="word-list-section">
+                <h3>已添加的单词 (<span id="word-count">0</span>/10)</h3>
+                <div class="word-list" id="word-list">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 添加按钮 -->
+            <button class="add-word-btn" id="add-word-btn" onclick="openAddWordModal()">
+                <span class="add-icon">➕</span>
+                <span>添加单词-图片</span>
+            </button>
+            
+            <!-- 默认单词库 -->
+            <div class="default-words-section">
+                <h3>🎁 默认单词库 (500+单词，点击快速添加)</h3>
+                <div class="category-tabs">
+                    <button class="category-tab active" data-category="animal" onclick="switchDefaultCategory('animal')">🐾 动物</button>
+                    <button class="category-tab" data-category="fruit" onclick="switchDefaultCategory('fruit')">🍎 蔬果</button>
+                    <button class="category-tab" data-category="color" onclick="switchDefaultCategory('color')">🎨 颜色</button>
+                    <button class="category-tab" data-category="body" onclick="switchDefaultCategory('body')">👋 身体</button>
+                    <button class="category-tab" data-category="food" onclick="switchDefaultCategory('food')">🍔 食物</button>
+                    <button class="category-tab" data-category="vehicle" onclick="switchDefaultCategory('vehicle')">🚗 交通</button>
+                    <button class="category-tab" data-category="nature" onclick="switchDefaultCategory('nature')">🌳 自然</button>
+                    <button class="category-tab" data-category="clothes" onclick="switchDefaultCategory('clothes')">👕 衣服</button>
+                    <button class="category-tab" data-category="home" onclick="switchDefaultCategory('home')">🏠 家居</button>
+                    <button class="category-tab" data-category="school" onclick="switchDefaultCategory('school')">📚 学习</button>
+                    <button class="category-tab" data-category="weather" onclick="switchDefaultCategory('weather')">☀️ 天气</button>
+                    <button class="category-tab" data-category="action" onclick="switchDefaultCategory('action')">🏃 动作</button>
+                    <button class="category-tab" data-category="number" onclick="switchDefaultCategory('number')">🔢 数字</button>
+                </div>
+                <div class="default-words-grid" id="default-words-grid">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 保存按钮 -->
+            <button class="save-btn" onclick="saveTodayWords()">
+                <span>💾 保存今日学习内容</span>
+            </button>
+        </main>
+    </div>
+
+    <!-- 添加/编辑单词弹窗 -->
+    <div id="word-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeWordModal()">✕</button>
+            <h3 id="modal-title">添加新单词</h3>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>英文单词</label>
+                    <input type="text" id="word-input" placeholder="如: apple" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label>图片</label>
+                    <div class="image-upload-area" id="image-upload-area" onclick="document.getElementById('image-input').click()">
+                        <div class="upload-placeholder" id="upload-placeholder">
+                            <span class="upload-icon">📷</span>
+                            <span>点击上传图片</span>
+                        </div>
+                        <img id="preview-image" class="preview-image" style="display: none;">
+                    </div>
+                    <input type="file" id="image-input" accept="image/*" style="display: none;" onchange="previewImage(event)">
+                </div>
+                <div class="form-group">
+                    <label>分类（可选）</label>
+                    <select id="category-select">
+                        <option value="">无分类</option>
+                        <option value="animal">动物</option>
+                        <option value="fruit">水果</option>
+                        <option value="color">颜色</option>
+                        <option value="body">身体</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn cancel-btn" onclick="closeWordModal()">取消</button>
+                <button class="modal-btn confirm-btn" onclick="saveWord()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 游戏1: 单词闪记卡 ==================== -->
+    <div id="flashcard-game-view" class="view game-view">
+        <button class="back-btn" onclick="showView('home-view')">🏠</button>
+        <header class="game-header">
+            <h2>🃏 单词闪记卡</h2>
+        </header>
+        <main class="flashcard-game-main">
+            <div class="flashcard-container" id="flashcard-container">
+                <div class="flashcard" id="flashcard" onclick="flipCard()">
+                    <div class="flashcard-front">
+                        <div class="flashcard-image" id="flashcard-image">🖼️</div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="flashcard-word" id="flashcard-word">WORD</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flashcard-controls">
+                <button class="nav-btn prev-btn" onclick="prevCard()">⬅️ 上一个</button>
+                <div class="card-progress">
+                    <span id="current-card">1</span> / <span id="total-cards">10</span>
+                </div>
+                <button class="nav-btn next-btn" onclick="nextCard()">下一个 ➡️</button>
+            </div>
+            <button class="speak-btn" onclick="speakCurrentWord()">🔊 听发音</button>
+        </main>
+    </div>
+
+    <!-- ==================== 游戏2: 图片单词下雨 ==================== -->
+    <div id="word-rain-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitWordRain()">🏠</button>
+        <header class="game-header">
+            <h2>🌧️ 单词下雨</h2>
+            <div class="game-score">得分: <span id="rain-score">0</span></div>
+        </header>
+        <main class="word-rain-main" id="word-rain-area">
+            <div class="rain-start-screen" id="rain-start-screen">
+                <div class="start-icon">🌧️</div>
+                <p>点击开始，接住下落的单词！</p>
+                <button class="start-game-btn" onclick="startWordRain()">开始游戏</button>
+            </div>
+            <!-- 下落元素会动态添加 -->
+        </main>
+    </div>
+
+    <!-- ==================== 游戏3: 字母拼拼乐 ==================== -->
+    <div id="spell-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitSpellGame()">🏠</button>
+        <header class="game-header">
+            <h2>🔤 字母拼拼乐</h2>
+        </header>
+        <main class="spell-game-main">
+            <div class="spell-target">
+                <div class="target-image" id="spell-target-image">🖼️</div>
+                <button class="hint-btn" onclick="speakSpellWord()">🔊 听发音</button>
+            </div>
+            <div class="spell-slots" id="spell-slots">
+                <!-- 动态生成拼写槽位 -->
+            </div>
+            <div class="letter-pool" id="letter-pool">
+                <!-- 动态生成字母选项 -->
+            </div>
+            <div class="spell-feedback" id="spell-feedback"></div>
+            <button class="next-word-btn" id="spell-next-btn" style="display: none;" onclick="nextSpellWord()">下一个单词 ➡️</button>
+        </main>
+    </div>
+
+    <!-- ==================== 游戏4: 听音选图 ==================== -->
+    <div id="listen-pick-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitListenPick()">🏠</button>
+        <header class="game-header">
+            <h2>👂 听音选图</h2>
+        </header>
+        <main class="listen-pick-main">
+            <button class="big-speak-btn" onclick="playListenWord()">
+                <span class="speaker-icon">🔊</span>
+                <span>点击听单词</span>
+            </button>
+            <div class="image-options" id="listen-options">
+                <!-- 动态生成图片选项 -->
+            </div>
+            <div class="listen-feedback" id="listen-feedback"></div>
+            <button class="next-word-btn" id="listen-next-btn" style="display: none;" onclick="nextListenWord()">下一题 ➡️</button>
+        </main>
+    </div>
+
+    <!-- ==================== 游戏5: 单词连连看 ==================== -->
+    <div id="match-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitMatchGame()">🏠</button>
+        <header class="game-header">
+            <h2>🔗 单词连连看</h2>
+            <div class="match-progress">配对: <span id="match-count">0</span>/<span id="match-total">5</span></div>
+        </header>
+        <main class="match-game-main">
+            <div class="match-container" id="match-container">
+                <div class="match-column images-column" id="images-column">
+                    <!-- 动态生成图片 -->
+                </div>
+                <svg class="match-lines" id="match-lines"></svg>
+                <div class="match-column words-column" id="words-column">
+                    <!-- 动态生成单词 -->
+                </div>
+            </div>
+            <div class="match-feedback" id="match-feedback"></div>
+        </main>
+    </div>
+
+    <!-- ==================== 游戏6: 分类小能手 ==================== -->
+    <div id="category-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitCategoryGame()">🏠</button>
+        <header class="game-header">
+            <h2>📦 分类小能手</h2>
+        </header>
+        <main class="category-game-main">
+            <div class="category-boxes" id="category-boxes">
+                <!-- 动态生成分类框 -->
+            </div>
+            <div class="items-to-sort" id="items-to-sort">
+                <!-- 动态生成待分类物品 -->
+            </div>
+            <div class="category-feedback" id="category-feedback"></div>
+        </main>
+    </div>
+
+    <!-- ==================== 游戏7: 找单词小侦探 ==================== -->
+    <div id="finder-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitFinderGame()">🏠</button>
+        <header class="game-header">
+            <h2>🔍 找单词小侦探</h2>
+            <div class="finder-progress">找到: <span id="finder-count">0</span>/<span id="finder-total">5</span></div>
+        </header>
+        <main class="finder-game-main" id="finder-scene">
+            <!-- 卡通场景和隐藏单词会动态生成 -->
+        </main>
+    </div>
+
+    <!-- ==================== 游戏8: 单词拍拍乐 ==================== -->
+    <div id="tap-game-view" class="view game-view">
+        <button class="back-btn" onclick="exitTapGame()">🏠</button>
+        <header class="game-header">
+            <h2>👋 单词拍拍乐</h2>
+            <div class="tap-score">得分: <span id="tap-score">0</span></div>
+        </header>
+        <main class="tap-game-main" id="tap-game-area">
+            <div class="tap-start-screen" id="tap-start-screen">
+                <div class="start-icon">👋</div>
+                <p>听到单词后，快速拍打对应的图片！</p>
+                <button class="start-game-btn" onclick="startTapGame()">开始游戏</button>
+            </div>
+            <div class="tap-items" id="tap-items" style="display: none;">
+                <!-- 动态生成 -->
+            </div>
+        </main>
+    </div>
+
+    <!-- ==================== 通用反馈弹窗 ==================== -->
+    <div id="feedback-popup" class="feedback-popup" style="display: none;">
+        <div class="feedback-content">
+            <div class="feedback-icon" id="feedback-icon">🎉</div>
+            <div class="feedback-text" id="feedback-text">太棒了！</div>
+        </div>
+    </div>
+
+    <!-- ==================== 游戏完成弹窗 ==================== -->
+    <div id="complete-modal" class="modal" style="display: none;">
+        <div class="modal-content complete-content">
+            <div class="complete-icon">🎉🌟🎉</div>
+            <h3>太棒了！</h3>
+            <p id="complete-message">你完成了所有挑战！</p>
+            <div class="complete-actions">
+                <button class="modal-btn" onclick="restartCurrentGame()">再玩一次</button>
+                <button class="modal-btn confirm-btn" onclick="showView('home-view'); closeCompleteModal();">返回首页</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 文件 -->
+    <script src="script.js"></script>
+</body>
+</html>
