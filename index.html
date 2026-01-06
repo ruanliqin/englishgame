@@ -31,10 +31,16 @@
     <div id="home-view" class="view">
         <header class="main-header">
             <h1>🌈 英语启蒙乐园 🌈</h1>
-            <button class="settings-btn" onclick="showView('content-manager-view')">
-                <span class="settings-icon">⚙️</span>
-                <span class="settings-text">今日学习</span>
-            </button>
+            <div style="display: flex; gap: 10px;">
+                <button class="settings-btn" onclick="showView('content-manager-view')">
+                    <span class="settings-icon">⚙️</span>
+                    <span class="settings-text">今日学习</span>
+                </button>
+                <button class="settings-btn" onclick="logout()" style="background: #ff6b6b;">
+                    <span class="settings-icon">🚪</span>
+                    <span class="settings-text">登出</span>
+                </button>
+            </div>
         </header>
         <main class="home-main">
             <div class="games-grid">

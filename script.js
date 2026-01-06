@@ -3,6 +3,23 @@ let currentWords = []; // 当前学习的单词列表
 let editingWordIndex = -1; // 正在编辑的单词索引
 let currentGameType = ''; // 当前游戏类型
 
+// ==================== 音频解锁机制 ====================
+// 全局解锁音频
+let unlockAudio = null;
+function unlockAudioPlayback() {
+    if (unlockAudio) return;
+    // 创建一个极短的静音音频
+    unlockAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ');
+    unlockAudio.volume = 0; // 静音
+    // 尝试播放，目的是解锁后续的播放权限
+    unlockAudio.play().then(() => {
+        console.log('音频播放权限已解锁');
+        unlockAudio.pause();
+    }).catch(e => {
+        console.warn('音频解锁失败（可能已解锁）:', e);
+    });
+}
+
 // ==================== 默认单词库 (500+ 单词) ====================
 const DEFAULT_WORDS = {
     // 🐾 动物 (50个)
@@ -522,10 +539,62 @@ const DEFAULT_WORDS = {
     ]
 };
 
+// ==================== 认证系统 ====================
+// 检查认证状态
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        if (!data.authenticated) {
+            window.location.href = '/login.html';
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('认证检查失败:', error);
+        window.location.href = '/login.html';
+        return false;
+    }
+}
+
+// 登出功能
+async function logout() {
+    if (!confirm('确定要登出吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = '/login.html';
+        } else {
+            alert('登出失败，请重试');
+        }
+    } catch (error) {
+        console.error('登出错误:', error);
+        alert('登出失败，请重试');
+    }
+}
+
 // ==================== 页面初始化 ====================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // 首先检查认证状态
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) {
+        return; // 未认证，已重定向到登录页
+    }
+    
     loadWordsFromStorage();
     initContentManager();
+    // 尝试提前解锁音频播放权限（对部分浏览器有效）
+    unlockAudioPlayback();
 });
 
 // ==================== 数据存储系统 ====================
@@ -576,18 +645,29 @@ function initSpeech() {
                 }
             });
             
-            // 优先选择英语语音，按优先级排序
+            // 优先选择英语语音，按优先级排序（选择更清晰、更适合儿童的语音）
+            // 优先选择：女性语音（更适合儿童） > Google语音（质量好） > 美式英语
+            const enVoices = voices.filter(v => v.lang.startsWith('en'));
+            
             englishVoice = 
-                // 优先选择美式英语
-                voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
-                voices.find(v => v.lang === 'en-US' && v.name.includes('Microsoft')) ||
-                voices.find(v => v.lang === 'en-US') ||
-                // 其次选择英式英语
-                voices.find(v => v.lang === 'en-GB') ||
-                // 再次选择任何英语
-                voices.find(v => v.lang.startsWith('en-')) ||
-                voices.find(v => v.lang.startsWith('en')) ||
-                // 最后选择默认
+                // 1. 优先：Google 美式女性语音（最清晰、最适合儿童）
+                enVoices.find(v => v.lang === 'en-US' && v.name.includes('Google') && (v.name.includes('Female') || v.name.includes('女') || v.name.includes('Susan') || v.name.includes('Karen'))) ||
+                // 2. Google 美式语音（高质量）
+                enVoices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+                // 3. Microsoft 美式女性语音
+                enVoices.find(v => v.lang === 'en-US' && v.name.includes('Microsoft') && (v.name.includes('Female') || v.name.includes('Zira'))) ||
+                // 4. 任何美式英语女性语音
+                enVoices.find(v => v.lang === 'en-US' && (v.name.includes('Female') || v.name.includes('女') || v.name.includes('Susan') || v.name.includes('Karen') || v.name.includes('Zira'))) ||
+                // 5. Microsoft 美式语音
+                enVoices.find(v => v.lang === 'en-US' && v.name.includes('Microsoft')) ||
+                // 6. 任何美式英语
+                enVoices.find(v => v.lang === 'en-US') ||
+                // 7. Google 英式语音
+                enVoices.find(v => v.lang === 'en-GB' && v.name.includes('Google')) ||
+                // 8. 英式英语
+                enVoices.find(v => v.lang === 'en-GB') ||
+                // 9. 任何英语
+                enVoices[0] ||
                 null;
             
             speechReady = true;
@@ -626,24 +706,77 @@ function startLearning() {
         btn.disabled = true;
     }
     
+    // 关键：在用户交互时立即解锁音频权限
+    unlockAudioPlayback();
+    
     // 再次尝试初始化语音（用户交互后）
     initSpeech();
     
-    // 解锁音频上下文
-    if ('speechSynthesis' in window) {
-        // 取消任何挂起的语音
+    // 检查语音支持情况
+    const speechSupported = 'speechSynthesis' in window;
+    const voices = speechSupported ? window.speechSynthesis.getVoices() : [];
+    const hasVoices = voices.length > 0;
+    
+    // 显示语音状态
+    if (tip) {
+        if (!speechSupported) {
+            tip.innerHTML = '📱 将使用在线语音服务';
+            tip.style.color = '#3498db';
+        } else if (!hasVoices) {
+            tip.innerHTML = '📱 正在加载语音...';
+            tip.style.color = '#3498db';
+        } else {
+            const hasEnglishVoice = voices.some(v => v.lang.startsWith('en'));
+            if (!hasEnglishVoice) {
+                tip.innerHTML = '⚠️ 未检测到英语语音，将使用在线语音';
+                tip.style.color = '#e67e22';
+            }
+        }
+    }
+    
+    // 播放欢迎语音
+    const playWelcome = () => {
+        // 尝试使用备用 TTS 播放欢迎语音
+        try {
+            const audio = new Audio();
+            const encodedWord = encodeURIComponent('Hello');
+            audio.src = `https://dict.youdao.com/dictvoice?audio=${encodedWord}&type=2`;
+            
+            audio.onended = () => {
+                console.log('欢迎语音播放完成（在线）');
+                showView('home-view');
+            };
+            
+            audio.onerror = () => {
+                console.log('在线语音加载失败，直接进入');
+                showView('home-view');
+            };
+            
+            audio.play().then(() => {
+                console.log('在线欢迎语音开始播放');
+            }).catch(() => {
+                console.log('在线语音播放失败，直接进入');
+                showView('home-view');
+            });
+            
+            // 备用：如果2秒后还没切换，强制切换
+            setTimeout(() => {
+                const welcomeView = document.getElementById('welcome-view');
+                if (welcomeView && welcomeView.classList.contains('active')) {
+                    showView('home-view');
+                }
+            }, 2000);
+            
+        } catch (e) {
+            console.log('音频创建失败:', e);
+            showView('home-view');
+        }
+    };
+    
+    // 如果支持 speechSynthesis 且有语音，使用原生方案
+    if (speechSupported && hasVoices) {
         window.speechSynthesis.cancel();
         
-        // 显示语音状态
-        const voices = window.speechSynthesis.getVoices();
-        const hasEnglishVoice = voices.some(v => v.lang.startsWith('en'));
-        
-        if (!hasEnglishVoice && tip) {
-            tip.innerHTML = '⚠️ 未检测到英语语音包，语音功能可能受限<br>建议在系统设置中安装英语语音';
-            tip.style.color = '#e67e22';
-        }
-        
-        // 播放欢迎语音来解锁
         setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance('Hello');
             utterance.lang = 'en-US';
@@ -655,47 +788,39 @@ function startLearning() {
                 utterance.voice = englishVoice;
             }
             
-            utterance.onstart = () => {
-                console.log('欢迎语音开始播放');
-            };
-            
+            utterance.onstart = () => console.log('欢迎语音开始播放');
             utterance.onend = () => {
                 console.log('欢迎语音播放完成');
                 speechReady = true;
                 showView('home-view');
             };
-            
             utterance.onerror = (e) => {
                 console.log('欢迎语音错误:', e.error);
-                // 即使出错也切换页面
-                showView('home-view');
+                // 使用备用方案
+                playWelcome();
             };
             
             try {
                 window.speechSynthesis.speak(utterance);
                 console.log('已发送speak命令');
+                
+                // 备用：如果2秒后还没切换，强制切换
+                setTimeout(() => {
+                    const welcomeView = document.getElementById('welcome-view');
+                    if (welcomeView && welcomeView.classList.contains('active')) {
+                        console.log('超时，强制切换页面');
+                        showView('home-view');
+                    }
+                }, 2000);
+                
             } catch (e) {
                 console.log('speak调用失败:', e);
-                showView('home-view');
+                playWelcome();
             }
-            
-            // 备用：如果2秒后还没切换，强制切换
-            setTimeout(() => {
-                const welcomeView = document.getElementById('welcome-view');
-                if (welcomeView && welcomeView.classList.contains('active')) {
-                    console.log('超时，强制切换页面');
-                    showView('home-view');
-                }
-            }, 2000);
-            
         }, 200);
     } else {
-        // 浏览器不支持语音，直接切换
-        if (tip) {
-            tip.textContent = '⚠️ 您的浏览器不支持语音功能';
-            tip.style.color = '#e74c3c';
-        }
-        setTimeout(() => showView('home-view'), 1000);
+        // 使用在线语音服务
+        setTimeout(playWelcome, 200);
     }
 }
 
@@ -955,20 +1080,133 @@ function saveTodayWords() {
 }
 
 // ==================== 语音系统 ====================
+// 当前播放的音频元素
+let currentAudio = null;
+
+// 使用备用 TTS 服务播放单词
+function speakWordFallback(word) {
+    console.log('尝试备用TTS播放:', word);
+    
+    // 停止之前的音频
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+    
+    // 播放前尝试解锁权限
+    unlockAudioPlayback();
+    
+    // 使用免费的在线 TTS 服务
+    // 方案1: 使用有道词典 TTS（type=1 美式发音，更清晰；type=2 英式发音）
+    const encodedWord = encodeURIComponent(word);
+    // 优先使用美式发音（type=1），音质更清晰
+    const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodedWord}&type=1`;
+    
+    currentAudio = new Audio(audioUrl);
+    currentAudio.playbackRate = 0.75; // 放慢速度，更适合4岁儿童学习
+    // 关键：设置音量，避免因静音导致播放失败
+    currentAudio.volume = 1.0;
+    
+    currentAudio.onplay = () => console.log('备用TTS开始播放:', word);
+    currentAudio.onended = () => console.log('备用TTS播放完成:', word);
+    currentAudio.onerror = (e) => {
+        console.error('有道美式TTS播放错误，尝试英式:', e);
+        // 如果美式失败，尝试英式（type=2）
+        const ukAudioUrl = `https://dict.youdao.com/dictvoice?audio=${encodedWord}&type=2`;
+        console.log('尝试有道英式TTS:', ukAudioUrl);
+        const backupAudio = new Audio(ukAudioUrl);
+        backupAudio.volume = 1.0;
+        backupAudio.onerror = (e2) => {
+            console.error('有道英式TTS也失败，尝试Google TTS:', e2);
+            // 最后尝试 Google TTS
+            const googleAudioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodedWord}`;
+            const finalBackup = new Audio(googleAudioUrl);
+            finalBackup.volume = 1.0;
+            finalBackup.play().catch(e3 => {
+                console.error('所有TTS服务都失败了:', e3);
+                showFeedback('⚠️', '无法播放发音，请检查网络或音量设置。', true);
+            });
+        };
+        backupAudio.play().catch(e2 => {
+            console.error('有道英式TTS播放失败:', e2);
+        });
+    };
+    
+    // 关键：立即播放，不要等待
+    const playPromise = currentAudio.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(e => {
+            console.error('播放被浏览器阻止:', e);
+            // 提供一个明确的用户提示
+            showFeedback('⚠️', '点击后无法播放？请尝试：1. 检查手机是否静音；2. 刷新页面后先点击"开始学习"，再立即点击"听发音"；3. 换个浏览器试试。', true);
+        });
+    }
+}
+
+// 第二备用方案（Google TTS）
+function speakWordFallback2(word) {
+    console.log('尝试Google TTS播放:', word);
+    
+    // 停止之前的音频
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+    
+    // 播放前尝试解锁权限
+    unlockAudioPlayback();
+    
+    // 使用 Google TTS 服务（更清晰的接口）
+    const encodedWord = encodeURIComponent(word);
+    // 使用更新的 Google TTS 接口，音质更好
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-US&client=tw-ob&q=${encodedWord}`;
+    
+    currentAudio = new Audio(audioUrl);
+    currentAudio.playbackRate = 0.75; // 稍微放慢，更适合儿童
+    // 关键：设置音量，避免因静音导致播放失败
+    currentAudio.volume = 1.0;
+    
+    currentAudio.onplay = () => console.log('Google TTS开始播放:', word);
+    currentAudio.onended = () => console.log('Google TTS播放完成:', word);
+    currentAudio.onerror = (e) => {
+        console.error('Google TTS播放错误:', e, 'URL:', audioUrl);
+        showFeedback('⚠️', '所有TTS服务都失败了，请检查网络连接。', true);
+    };
+    
+    // 关键：立即播放
+    const playPromise = currentAudio.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.catch(e => {
+            console.error('Google TTS播放被阻止:', e);
+            showFeedback('⚠️', '播放被阻止，请确保在用户点击后立即播放。', true);
+        });
+    }
+}
+
 function speakWord(word) {
-    if (!('speechSynthesis' in window)) {
-        console.log('浏览器不支持语音合成');
+    // 检查是否支持 speechSynthesis
+    const speechSupported = 'speechSynthesis' in window;
+    const hasVoices = speechSupported && window.speechSynthesis.getVoices().length > 0;
+    
+    // 如果不支持语音合成或没有可用语音，使用备用方案
+    if (!speechSupported || !hasVoices || !speechReady) {
+        console.log('使用备用TTS服务');
+        // 在调用备用方案前解锁权限
+        unlockAudioPlayback();
+        speakWordFallback(word);
         return;
     }
     
     // 取消当前正在播放的语音
     window.speechSynthesis.cancel();
     
-    // 创建语音
+    // 创建语音（针对4岁儿童优化）
     const utterance = new SpeechSynthesisUtterance(word);
     utterance.lang = 'en-US';
-    utterance.rate = 0.7;
-    utterance.pitch = 1.1;
+    utterance.rate = 0.65; // 更慢的速度，便于儿童理解
+    utterance.pitch = 1.15; // 稍微提高音调，更友好
     utterance.volume = 1;
     
     // 使用缓存的英语语音（如果有）
@@ -981,10 +1219,8 @@ function speakWord(word) {
     utterance.onend = () => console.log('播放完成:', word);
     utterance.onerror = (e) => {
         console.log('播放错误:', e.error, word);
-        // 如果出错，尝试使用备用方法
-        if (e.error === 'not-allowed') {
-            console.log('语音被阻止，请先点击页面');
-        }
+        // 如果出错，使用备用方案
+        speakWordFallback(word);
     };
     
     // Chrome 有一个 bug，长时间不说话后语音会卡住
@@ -999,7 +1235,8 @@ function speakWord(word) {
             try {
                 window.speechSynthesis.speak(utterance);
             } catch (e) {
-                console.log('speak 调用失败:', e);
+                console.log('speak 调用失败，使用备用方案:', e);
+                speakWordFallback(word);
             }
         }, 100);
     };
@@ -1916,3 +2153,6 @@ function exitTapGame() {
     }
     showView('home-view');
 }
+
+// 页面加载完成后尝试解锁音频权限（额外保障）
+window.addEventListener('load', unlockAudioPlayback);
